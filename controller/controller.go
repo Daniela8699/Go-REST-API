@@ -87,16 +87,51 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 			actual.LastUpdated = lastUpdated
 			infoServerDB = connection.GetInfoServer(domain, db)
 		} else {
+			// When infoServerDB exist then update it
+			// Validate the previous state
+			t := time.Now()
+			present, _ := time.Parse(time.RFC3339, t.Format(time.RFC3339))
+			past, _ := time.Parse(time.RFC3339, infoServerDB.LastUpdated)
+			duration := present.Sub(past)
+			fmt.Println("Present: ", present)
+			fmt.Println("Past: ", past)
+			fmt.Println("Duration: ", duration)
+			fmt.Println("Duration.Hours: ", int(duration.Hours()))
+			// fmt.Println("Duration.Minutes: ", int(duration.Minutes()))
 
+			// Only or tests
+			// if duration.Minutes() >= 0 {
+			// Only update past one hour and grade ssl changed
+			if duration.Hours() >= 0 {
+				// Past one hour, validate grade ssl if changed
+				// Only or tests
+				// infoServer.SslGrade = "C"
+				if actual.SSLGrade != infoServerDB.PreviousSSLGrade {
+					actual.ServersChanged = true
+					actual.PreviousSSLGrade = infoServerDB.SSLGrade
+					present := time.Now()
+					lastUpdated := present.Format(time.RFC3339)
+					actual.LastUpdated = lastUpdated
+				} else {
+					actual.ServersChanged = false
+					actual.PreviousSSLGrade = infoServerDB.SSLGrade
+					actual.LastUpdated = infoServerDB.LastUpdated
+				}
+				connection.UpdateInfoServer(domain, actual, db)
+			}
 		}
-		//
+		infoServerDB = connection.GetInfoServer(domain, db)
+		fmt.Println("InfoServer: ", actual)
 
 	}
+	//
 
 }
 
-func getDomainInfo(query map[string]interface{}) structs.DomainInfo {
-	actual := &structs.DomainInfo{}
+//GetDomainInfo get the domain information given by sslapi
+func GetDomainInfo(query map[string]interface{}) structs.DomainInfo {
+
+	actual := structs.DomainInfo{}
 	servers := make([]structs.Server, 0)
 	endpointSlice := query["endpoints"].([]interface{})
 
