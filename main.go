@@ -9,16 +9,17 @@ import (
 	"github.com/buaazp/fasthttprouter"
 	"github.com/valyala/fasthttp"
 )
-var db *sql.DB
+
 
 // Get information from a specific domain
 func queryServers(ctx *fasthttp.RequestCtx) {
-	controller.GetQueryServers(ctx, db)
+	
+	controller.GetQueryServers(ctx)
 }
 
 // Get information about user History
 func queryHistory(ctx *fasthttp.RequestCtx) {
-	controller.GetQueryHistory(ctx, db)
+	controller.GetQueryHistory(ctx)
 }
 
 
@@ -26,12 +27,12 @@ func queryHistory(ctx *fasthttp.RequestCtx) {
 func main() {
 	// Init router & DB
 	r := fasthttprouter.New()
-	startDB()
+	
 
 	// Route handles & endpoints
 	r.GET("/serversInformation/:domain", queryServers)
 	r.GET("/history", queryHistory)
 
 	// Start server
-	log.Fatal(fasthttp.ListenAndServe(":8080", r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(":8081", r.Handler))
 }

@@ -85,6 +85,7 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 			present := time.Now()
 			lastUpdated := present.Format(time.RFC3339)
 			actual.LastUpdated = lastUpdated
+			connection.CreateInfoServer(domain, actual, db)
 			infoServerDB = connection.GetInfoServer(domain, db)
 		} else {
 			// When infoServerDB exist then update it
@@ -132,6 +133,7 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 func GetDomainInfo(query map[string]interface{}) structs.DomainInfo {
 
 	actual := structs.DomainInfo{}
+	actual.ServersChanged = false;
 	servers := make([]structs.Server, 0)
 	endpointSlice := query["endpoints"].([]interface{})
 
@@ -150,7 +152,12 @@ func GetDomainInfo(query map[string]interface{}) structs.DomainInfo {
 	}
 	actual.Servers = servers
 	//logo
+	logo, title, err := GetInfoWebsite(domain)
 
+	if err == nil {
+		actual.Title = title
+		actual.Logo = logo
+	}
 	//Calcultae worstGrade
 	grade := calculateWorstGrade(actual.Servers)
 

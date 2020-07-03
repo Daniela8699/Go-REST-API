@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	// "log"
+	 "log"
 	// User Go pq driver
 	_ "github.com/lib/pq"
 
@@ -15,15 +15,15 @@ import (
 // ConnectDB create a connection db
 func ConnectDB() *sql.DB {
 	// Connect to the "truora" database.
-	db, err := sql.Open("postgres", "postgresql://root@localhost:26257/infoservers?sslmode=disable")
+	db, err := sql.Open("postgres", "postgresql://root@localhost:26257/domains?sslmode=disable")
 	if err != nil {
 		// log.Fatal(err)
 		fmt.Println("ERROR connecting to the database: ", err)
 	}
 	// Create the "accounts" table.
 	if _, err := db.Exec(
-		"CREATE TABLE IF NOT EXISTS infoservers (host STRING PRIMARY KEY, query JSONB, last_updated TIMESTAMP)"); err != nil {
-		// log.Fatal(err)
+		"CREATE TABLE IF NOT EXISTS infoservers (host STRING PRIMARY KEY, report JSONB, last_updated string)"); err != nil {
+		log.Fatal(err)
 		fmt.Println("ERROR create table infoservers: ", err)
 	}
 	return db
@@ -41,14 +41,14 @@ func GetInfoServer(domain string, db *sql.DB) structs.DomainInfo {
 
 	var infoServer structs.DomainInfo
 
-	var domainName, query, lastUpdated string
+	var domainName, report, lastUpdated string
 	for rows.Next() {
-		if err := rows.Scan(&domainName, &query, &lastUpdated); err != nil {
+		if err := rows.Scan(&domainName, &report, &lastUpdated); err != nil {
 
 			fmt.Println("ERROR get data for result set: ", err)
 		}
 
-		bytes := []byte(query)
+		bytes := []byte(report)
 		err := json.Unmarshal(bytes, &infoServer)
 		if err != nil {
 
@@ -72,7 +72,7 @@ func CreateInfoServer(domain string, infoServer structs.DomainInfo, db *sql.DB) 
 	// fmt.Println(string(infoServerStr))
 	// Insert one row into the "infoservers" table.
 	if _, err := db.Exec(
-		"INSERT INTO infoservers (domain, data_infoserver, last_updated) VALUES ('" + domain + "', '" + string(infoServerStr) + "', '" + infoServer.LastUpdated + "')"); err != nil {
+		"INSERT INTO infoservers (host, report, last_updated) VALUES ('" + domain + "', '" + string(infoServerStr) + "', '" + infoServer.LastUpdated + "')"); err != nil {
 		// log.Fatal(err)
 		fmt.Println("ERROR Insert one row infoservers table: ", err)
 		return false
@@ -91,7 +91,7 @@ func UpdateInfoServer(domain string, infoServer structs.DomainInfo, db *sql.DB) 
 	// fmt.Println(string(infoServerStr))
 	// Insert one row into the "infoservers" table.
 	if _, err := db.Exec(
-		"UPDATE infoservers SET (data_infoserver, last_updated) = ('" + string(infoServerStr) + "', '" + infoServer.LastUpdated + "') WHERE domain = '" + domain + "'"); err != nil {
+		"UPDATE infoservers SET (report, last_updated) = ('" + string(infoServerStr) + "', '" + infoServer.LastUpdated + "') WHERE host = '" + domain + "'"); err != nil {
 		// log.Fatal(err)
 		fmt.Println("ERROR Update one row infoservers table: ", err)
 		return false
