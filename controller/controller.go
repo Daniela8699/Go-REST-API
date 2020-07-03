@@ -1,43 +1,23 @@
 package controller
 
-import(
-
+import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"io/ioutil"
+	"net/http"
 	"time"
-	
 
+	connection "github.com/Daniela8699/Go-REST-API/db"
+	"github.com/Daniela8699/Go-REST-API/structs"
 	"github.com/valyala/fasthttp"
 )
 
-
-// Server struct (Model)
-type Server struct {
-	Address  string `json:"address"`
-	SSLGrade string `json:"ssl_grade"`
-	Country  string `json:"country"`
-	Owner    string `json:"owner"`
-}
-
-// DomainInfo struct
-type DomainInfo struct {
-	Servers          []Server `json:"servers"`
-	ServersChanged   bool         `json:"servers_changed"`
-	SSLGrade         string       `json:"ssl_grade"`
-	PreviousSSLGrade string       `json:"previous_ssl_grade"`
-	Logo             string       `json:"logo"`
-	Title            string       `json:"title"`
-	IsDown           bool         `json:"is_down"`
-	
-}
-
-// Get information from a specific domain
-func getQueryServers(ctx *fasthttp.RequestCtx) {
+//GetQueryServers get information from a specific domain
+func GetQueryServers(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 	ctx.Response.Header.Set("Content-Type", "application/json")
-	
+
+	db := connection.ConnectDB()
 	var query map[string]interface{}
 	domain := ctx.UserValue("domain").(string)
 	response, err := http.Get("https://api.ssllabs.com/api/v3/analyze?host=" + domain + "&fromCache=on&maxAge=1")
@@ -48,9 +28,8 @@ func getQueryServers(ctx *fasthttp.RequestCtx) {
 	data, _ := ioutil.ReadAll(response.Body)
 	json.Unmarshal(data, &query)
 
-	
 	status, test := query["status"].(string)
-	
+
 	//If something it's wrong 'status' always will be 'Error'
 	if !test {
 		status = "ERROR"
@@ -79,7 +58,7 @@ func getQueryServers(ctx *fasthttp.RequestCtx) {
 		if status == "ERROR" {
 			break
 		}
-		time.Sleep( 5 * time.Second)
+		time.Sleep(5 * time.Second)
 
 	}
 
@@ -90,57 +69,70 @@ func getQueryServers(ctx *fasthttp.RequestCtx) {
 			status = "Unknown error"
 		}
 		ctx.Error(status, fasthttp.StatusInternalServerError)
-		resp:= &DomainInfo{}
+		resp := &structs.DomainInfo{}
 		resp.IsDown = true
 		serialized, err := json.Marshal(response)
 		if err != nil {
 			ctx.Error("Unable to serialize data", fasthttp.StatusInternalServerError)
 		}
 		fmt.Fprint(ctx, string(serialized))
-	}else{
+	} else {
+		actual := GetDomainInfo(query)
+
 		//enviar a base de datos
-
-
-		//
-		actual := &DomainInfo{}
-		servers := make([]Server, 0)
-		endpointSlice := query["endpoints"].([]interface{})
-
-		for _, endpoint := range endpointSlice {
-			server := &Server{}
-			server.Address = endpoint.(map[string]interface{})["ipAddress"].(string)
-			fmt.Println("IpAddress: "+ server.Address )
-			grade, test := endpoint.(map[string]interface{})["grade"].(string)
-			if test {
-				server.SSLGrade = grade
-				fmt.Println("Grade: "+ server.SSLGrade )
-			}
-			//whois
-
-			servers = append(servers, *server)
-		}
-		actual.Servers = servers
-		//logo
-
-		//Calcultae worstGrade
-		grade := calculateWorstGrade(actual.Servers)
-
-		if grade != "Z" {
-			actual.SSLGrade = grade
+		infoServerDB := connection.GetInfoServer(domain, db)
+		if infoServerDB.SSLGrade == "" {
+			present := time.Now()
+			lastUpdated := present.Format(time.RFC3339)
+			actual.LastUpdated = lastUpdated
+			infoServerDB = connection.GetInfoServer(domain, db)
 		} else {
-			actual.SSLGrade = "Undetermined"
-		}
-		
 
+		}
+		//
 
 	}
-	
+
 }
+
+func getDomainInfo(query map[string]interface{}) structs.DomainInfo {
+	actual := &structs.DomainInfo{}
+	servers := make([]structs.Server, 0)
+	endpointSlice := query["endpoints"].([]interface{})
+
+	for _, endpoint := range endpointSlice {
+		server := &structs.Server{}
+		server.Address = endpoint.(map[string]interface{})["ipAddress"].(string)
+		fmt.Println("IpAddress: " + server.Address)
+		grade, test := endpoint.(map[string]interface{})["grade"].(string)
+		if test {
+			server.SSLGrade = grade
+			fmt.Println("Grade: " + server.SSLGrade)
+		}
+		//whois
+
+		servers = append(servers, *server)
+	}
+	actual.Servers = servers
+	//logo
+
+	//Calcultae worstGrade
+	grade := calculateWorstGrade(actual.Servers)
+
+	if grade != "Z" {
+		actual.SSLGrade = grade
+	} else {
+		actual.SSLGrade = "Undetermined"
+	}
+
+	return actual
+}
+
 /*
 The SSL grades of the servers goes from A to F where A is the biggest grade.
 The SSL grade of a domain is the minor SSL grade of the servers
 */
-func calculateWorstGrade(servers []Server) string {
+func calculateWorstGrade(servers []structs.Server) string {
 	grade := "Z"
 
 	for i := range servers {
@@ -153,7 +145,7 @@ func calculateWorstGrade(servers []Server) string {
 	return grade
 }
 
-func getQueryHistory(ctx *fasthttp.RequestCtx) {
+func GetQueryHistory(ctx *fasthttp.RequestCtx) {
 	ctx.Request.Header.Set("Content-Type", "application/json")
-	
+
 }
