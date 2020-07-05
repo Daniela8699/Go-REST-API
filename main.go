@@ -34,5 +34,5 @@ func main() {
 	r.GET("/history", queryHistory)
 
 	// Start server
-	log.Fatal(fasthttp.ListenAndServe(":8081", r.Handler))
+	log.Fatal(fasthttp.ListenAndServe(":3000", r.Handler))
 }

@@ -98,3 +98,28 @@ func UpdateInfoServer(domain string, infoServer structs.DomainInfo, db *sql.DB) 
 	}
 	return true
 }
+
+// GetHistoryServer get information about a server
+func GetHistoryServer( db *sql.DB) []structs.ServersHistoryElement {
+	// Print out the infoserver.
+	rows, err := db.Query("SELECT host FROM infoservers ORDER BY last_updated DESC")
+	domains := make([]structs.ServersHistoryElement, 0)
+	if err != nil {
+		fmt.Println("error...", err)
+	}
+	defer rows.Close()
+	for rows.Next() {
+		domain := structs.ServersHistoryElement{}
+
+		err := rows.Scan(&domain.Host)
+		if err != nil {
+			log.Fatal(err)
+
+		}
+
+		domains = append(domains, domain)
+
+	}
+
+	return domains
+}

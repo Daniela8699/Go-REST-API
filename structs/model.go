@@ -21,5 +21,10 @@ type DomainInfo struct {
 }
 // ServersHistory struct
 type ServersHistory struct {
-	Items []DomainInfo `json:"items"`
+	Items []ServersHistoryElement `json:"items"`
+}
+// ServersHistoryElement struct
+type ServersHistoryElement struct {
+	Host string        `json:"host"`
+	
 }
