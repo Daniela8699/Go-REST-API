@@ -17,7 +17,6 @@ import (
 //GetQueryServers get information from a specific domain
 func GetQueryServers(ctx *fasthttp.RequestCtx) {
 
-
 	db := connection.ConnectDB()
 	var query map[string]interface{}
 	domain := ctx.UserValue("domain").(string)
@@ -82,14 +81,14 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 		actual := GetDomainInfo(query, domain)
 		actual.ServersChanged = false
 		//send to db
-		serversDB := connection.GetInfoServer(domain, db)
+		serversDB := connection.GetDomainInfo(domain, db)
 		if serversDB.SSLGrade == "" {
 			present := time.Now()
 			lastUpdated := present.Format(time.RFC3339)
 
 			actual.LastUpdated = lastUpdated
-			connection.CreateInfoServer(domain, actual, db)
-			serversDB = connection.GetInfoServer(domain, db)
+			connection.CreateDomainInfo(domain, actual, db)
+			serversDB = connection.GetDomainInfo(domain, db)
 		} else {
 			//When domain exist in db
 			t := time.Now()
@@ -110,16 +109,16 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 					actual.PreviousSSLGrade = serversDB.SSLGrade
 
 					fmt.Println("El servidor cambio")
-					fmt.Println("SSLGRADE Antes: "+ serversDB.PreviousSSLGrade +" Ahora:"+actual.SSLGrade)
+					fmt.Println("SSLGRADE Antes: " + serversDB.PreviousSSLGrade + " Ahora:" + actual.SSLGrade)
 				} else {
 					actual.ServersChanged = false
 					actual.PreviousSSLGrade = serversDB.SSLGrade
 					actual.LastUpdated = serversDB.LastUpdated
 				}
-				connection.UpdateInfoServer(domain, actual, db)
+				connection.UpdateDomainInfo(domain, actual, db)
 			}
 		}
-		serversDB = connection.GetInfoServer(domain, db)
+		serversDB = connection.GetDomainInfo(domain, db)
 		message, err := json.Marshal(actual)
 		var message2 string
 		if err != nil {
@@ -136,14 +135,17 @@ func GetQueryServers(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Content-Type", "application/json")
 
 }
-//Hasta aqui
+
 //GetDomainInfo get the domain information given by sslapi
 func GetDomainInfo(query map[string]interface{}, domain string) structs.DomainInfo {
 
 	actual := structs.DomainInfo{}
-
-	servers := make([]structs.Server, 0)
 	endpointSlice := query["endpoints"].([]interface{})
+	servers := make([]structs.Server, 0)
+	//logo
+	logo, title:= extra.GetInfoWebsite(domain)
+	actual.Logo=logo
+	actual.Title = title
 
 	for _, endpoint := range endpointSlice {
 		server := &structs.Server{}
@@ -155,31 +157,24 @@ func GetDomainInfo(query map[string]interface{}, domain string) structs.DomainIn
 			fmt.Println("Grade: " + server.SSLGrade)
 		}
 		//whois
-		name, country, err := extra.GetWhoIsData(server.Address)
-		if err == nil {
+		owner, country := extra.GetWhoIsData(server.Address)
+		
 			server.Country = country
-			server.Owner = name
-		} else {
-			log.Print(err)
-		}
+			server.Owner = owner
+		
+	
 
 		servers = append(servers, *server)
 	}
 	actual.Servers = servers
-	//logo
-	logo, title, err := extra.GetInfoWebsite(domain)
 
-	if err == nil {
-		actual.Title = title
-		actual.Logo = logo
-	}
 	//Calcultae worstGrade
 	grade := calculateWorstGrade(actual.Servers)
 
 	if grade != "Z" {
 		actual.SSLGrade = grade
 	} else {
-		actual.SSLGrade = "Undetermined"
+		actual.SSLGrade = "Unknown"
 	}
 
 	return actual
@@ -202,6 +197,7 @@ func calculateWorstGrade(servers []structs.Server) string {
 	return grade
 }
 
+//GetQueryHistory get the history of the domains consulted
 func GetQueryHistory(ctx *fasthttp.RequestCtx) {
 	ctx.Response.Header.Set("Access-Control-Allow-Origin", "*")
 	ctx.Request.Header.Set("Content-Type", "application/json")
@@ -214,11 +210,11 @@ func GetQueryHistory(ctx *fasthttp.RequestCtx) {
 	history := structs.ServersHistory{
 		Items: domains,
 	}
-	obj, err := json.Marshal(history)
-	var obj2 string
+	jsonMsn, err := json.Marshal(history)
+	var msn string
 	if err != nil {
-		json.Unmarshal([]byte(obj), &obj2)
-		fmt.Fprintf(ctx, obj2)
+		json.Unmarshal([]byte(jsonMsn), &msn)
+		fmt.Fprintf(ctx, msn)
 	}
 	if err := json.NewEncoder(ctx).Encode(history); err != nil {
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)

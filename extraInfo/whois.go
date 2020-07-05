@@ -2,14 +2,14 @@ package extrainfo
 
 import (
 	"strings"
-
+	"fmt"
 	"github.com/likexian/whois-go"
 )
 
 func formatRaw(raw string, lookFor string) string {
-	cosa := strings.Split(raw, "\n")
+	format := strings.Split(raw, "\n")
 	var result string
-	for _, value := range cosa {
+	for _, value := range format {
 		if !strings.HasPrefix(value, lookFor) {
 			continue
 		}
@@ -31,7 +31,7 @@ func formatRaw(raw string, lookFor string) string {
 	return result
 }
 
-func GetWhoIsData(ip string) (string, string, error) {
+func GetWhoIsData(ip string) (string, string) {
 	raw, err := whois.Whois(ip)
 	var name string
 	var country string
@@ -39,6 +39,9 @@ func GetWhoIsData(ip string) (string, string, error) {
 		name = formatRaw(raw, "OrgName")
 		country = formatRaw(raw, "Country")
 
+	}else{
+		fmt.Println("error in whois: ", err)
 	}
-	return name, country, err
+	
+	return name, country
 }
